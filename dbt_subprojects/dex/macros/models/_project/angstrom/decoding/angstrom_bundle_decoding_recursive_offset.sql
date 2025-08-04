@@ -1,6 +1,6 @@
 {% macro
     angstrom_decoding_recursive(
-        input_hex,
+        raw_tx_input_hex,
         field_step
     )
 %}
@@ -11,7 +11,7 @@ WITH
     trimmed_input AS (
         SELECT 
             1 AS next_offset,
-            varbinary_substring(input_hex, 69) AS next_buf
+            varbinary_substring({{ raw_tx_input_hex }}, 69) AS next_buf
     ),
     -- assets
     step0 AS (
@@ -84,9 +84,15 @@ WITH
         )
     )
 SELECT
-    buf
-FROM {{field_step}}
-
+    seed.txi, 
+    buf_rec_vs.buf AS buf   
+FROM (
+    SELECT t.tx_data AS txi
+) AS seed
+CROSS JOIN LATERAL (
+    SELECT buf
+    FROM {{ field_step }}
+) AS buf_rec_vs
 
 
 {% endmacro %}

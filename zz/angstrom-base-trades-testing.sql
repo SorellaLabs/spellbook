@@ -16,7 +16,7 @@ WITH
             to AS angstrom_address,
             data AS tx_data
         FROM "delta_prod"."ethereum"."transactions"
-        WHERE to = angstrom_contract_addr AND varbinary_substring(data, 1, 4) = 0x09c5eabe
+        WHERE to = 0xb9c4cE42C2e29132e207d29Af6a7719065Ca6AeC AND varbinary_substring(data, 1, 4) = 0x09c5eabe AND hash = 0x47aefe13a19c8036c0985b59090a34adffcad108630a86aae298954554394d10
     ),
     tob_orders AS (
         SELECT 

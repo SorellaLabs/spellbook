@@ -4,8 +4,16 @@
 
 
 WITH vec_pade AS (
-    SELECT buf
-    FROM ({{ angstrom_decoding_recursive(raw_tx_input_hex, step3) }})
+    SELECT
+        seed.txi, 
+        tob_decode_vs.*       
+    FROM (
+        SELECT {{ raw_tx_input_hex }} AS txi
+    ) AS seed
+    CROSS JOIN LATERAL (
+        SELECT buf
+        FROM ({{ angstrom_decoding_recursive('seed.txi', 'step3') }})
+    ) AS tob_decode_vs
 )
 SELECT
     use_internal,
@@ -262,12 +270,11 @@ FROM (
             WHERE varbinary_length(buf) != 0
         )
     )
-    
     SELECT *
     FROM decode_tob_order
     WHERE idx > 0
 )
-ORDER BY idx DESC;
+ORDER BY idx DESC
 
 
 {% endmacro %}
