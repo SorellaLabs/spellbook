@@ -45,13 +45,12 @@ with
                 cross join
                     lateral (
                         select
-                            seed.txi,
                             tob_vs.quantity_in as quantity_in,
                             tob_vs.quantity_out as quantity_out,
                             tob_vs.asset_in as asset_in,
                             tob_vs.asset_out as asset_out,
                             tob_vs.recipient as recipient
-                        from (select t.tx_data as txi) as seed
+                        from (select t.tx_data as tx_data_param) params
                         cross join
                             lateral (
                                 select ab.*, asts.*
@@ -60,11 +59,10 @@ with
 
                                         with
                                             vec_pade as (
-                                                select seed.txi, tob_decode_vs.*
-                                                from (select seed.txi as txi) as seed
-                                                cross join
+                                                select tob_decode_vs.*
+                                                from
                                                     lateral (
-                                                        select buf, seed.txi
+                                                        select buf
                                                         from
                                                             (
                                                                 -- 0. assets, 1.
@@ -77,7 +75,7 @@ with
                                                                             1
                                                                             as next_offset,
                                                                             varbinary_substring(
-                                                                                seed.txi,
+                                                                                params.tx_data_param,
                                                                                 69
                                                                             )
                                                                             as next_buf
@@ -229,16 +227,9 @@ with
                                                                             )
                                                                     )
                                                                 select
-                                                                    seed.txi,
                                                                     buf_rec_vs.buf
                                                                     as buf
                                                                 from
-                                                                    (
-                                                                        select
-                                                                            t.tx_data
-                                                                            as txi
-                                                                    ) as seed
-                                                                cross join
                                                                     lateral (
                                                                         select buf
                                                                         from step3
@@ -777,6 +768,13 @@ with
                                             asset_out,
                                             price_1over0
                                         from (
+                                            select 
+                                                pairs_index_param,
+                                                zero_for_1_param,
+                                                tx_data_param
+                                            from (select ab.pairs_index as pairs_index_param, ab.zero_for_1 as zero_for_1_param, params.tx_data_param as tx_data_param) params2
+                                        ) p
+                                        cross join lateral (
                                             with
                                                 assets as (
                                                     select *
@@ -799,7 +797,7 @@ with
                                                                                         1
                                                                                         as next_offset,
                                                                                         varbinary_substring(
-                                                                                            seed.txi,
+                                                                                            p.tx_data_param,
                                                                                             69
                                                                                         )
                                                                                         as next_buf
@@ -979,16 +977,9 @@ with
                                                                                         )
                                                                                 )
                                                                             select
-                                                                                seed.txi,
                                                                                 buf_rec_vs.buf
                                                                                 as buf
                                                                             from
-                                                                                (
-                                                                                    select
-                                                                                        t.tx_data
-                                                                                        as txi
-                                                                                ) as seed
-                                                                            cross join
                                                                                 lateral (
                                                                                     select
                                                                                         buf
@@ -1137,7 +1128,7 @@ with
                                                                                         1
                                                                                         as next_offset,
                                                                                         varbinary_substring(
-                                                                                            seed.txi,
+                                                                                            p.tx_data_param,
                                                                                             69
                                                                                         )
                                                                                         as next_buf
@@ -1317,16 +1308,9 @@ with
                                                                                         )
                                                                                 )
                                                                             select
-                                                                                seed.txi,
                                                                                 buf_rec_vs.buf
                                                                                 as buf
                                                                             from
-                                                                                (
-                                                                                    select
-                                                                                        t.tx_data
-                                                                                        as txi
-                                                                                ) as seed
-                                                                            cross join
                                                                                 lateral (
                                                                                     select
                                                                                         buf
@@ -1446,36 +1430,33 @@ with
                                                 ),
                                                 _asset_in as (
                                                     select
-                                                        p.price_1over0,
-                                                        a.token_address as asset_in,
-                                                        ab.pairs_index,
-                                                        ab.zero_for_1
+                                                        pr.price_1over0,
+                                                        a.token_address as asset_in
                                                     from assets as a
-                                                    cross join pairs as p
+                                                    cross join pairs as pr
                                                     where
-                                                        a.bundle_idx = p.index0
-                                                        and p.bundle_idx = ab.pairs_index
+                                                        a.bundle_idx = pr.index0
+                                                        and pr.bundle_idx = p.pairs_index_param
                                                 ),
                                                 _asset_out as (
                                                     select 
-                                                        a.token_address as asset_out,
-                                                        ab.pairs_index
+                                                        a.token_address as asset_out
                                                     from assets as a
-                                                    cross join pairs as p
+                                                    cross join pairs as pr
                                                     where
-                                                        a.bundle_idx = p.index1
-                                                        and p.bundle_idx = ab.pairs_index
+                                                        a.bundle_idx = pr.index1
+                                                        and pr.bundle_idx = p.pairs_index_param
                                                 ),
                                                 zfo_assets as (
                                                     select
                                                         i.price_1over0,
                                                         if(
-                                                            i.zero_for_1,
+                                                            p.zero_for_1_param,
                                                             array[i.asset_in, o.asset_out],
                                                             array[o.asset_out, i.asset_in]
                                                         ) as zfo_sorted_assets
                                                     from _asset_in i
-                                                    inner join _asset_out o on i.pairs_index = o.pairs_index
+                                                    cross join _asset_out o
                                                 )
                                             select
                                                 zfo_sorted_assets[1] as asset_in,
