@@ -3,10 +3,36 @@
 %}
 
 
-WITH vec_pade AS (
-    SELECT buf
-    FROM ({{ angstrom_decoding_recursive(raw_tx_input_hex, 'step3') }})
-)
+WITH 
+    tx_data_cte AS (
+        SELECT {{ raw_tx_input_hex }} AS parent_buf
+    ),
+    vec_pade AS (
+        SELECT d.buf AS vec_buf
+        FROM tx_data_cte AS c
+        CROSS JOIN LATERAL ({{ angstrom_decoding_recursive('c.parent_buf', 'step3') }}) AS d
+    ),
+    base_calc AS (
+        SELECT
+            varbinary_substring(vec_pade.vec_buf, 4, varbinary_length(vec_pade.vec_buf) - 3) AS b_buf,
+            4 AS b_pointer,
+            0 AS b_idx,
+            CAST(NULL AS boolean) AS b_use_internal,
+            CAST(NULL AS uint256) AS b_quantity_in,
+            CAST(NULL AS uint256) AS b_quantity_out,
+            CAST(NULL AS uint256) AS b_max_gas_asset_0,
+            CAST(NULL AS uint256) AS b_gas_used_asset_0,
+            CAST(NULL AS bigint) AS b_pairs_index,
+            CAST(NULL AS boolean) AS b_zero_for_1,
+            CAST(NULL AS varbinary) AS b_recipient,
+            CAST(NULL AS varchar) AS b_signature_kind,
+            CAST(NULL AS bigint) AS b_signature_ecdsa_v,
+            CAST(NULL AS varbinary) AS b_signature_ecdsa_r,
+            CAST(NULL AS varbinary) AS b_signature_ecdsa_s,
+            CAST(NULL AS varbinary) AS b_signature_contract_from,
+            CAST(NULL AS varbinary) AS b_signature_contract_signature
+        FROM vec_pade
+    )
 SELECT
     use_internal,
     quantity_in,
@@ -22,7 +48,8 @@ SELECT
     signature_ecdsa_s,
     signature_contract_from,
     signature_contract_signature
-FROM (
+FROM base_calc 
+CROSS JOIN LATERAL (
     WITH RECURSIVE decode_tob_order (
         buf,
         pointer,
@@ -43,24 +70,23 @@ FROM (
         signature_contract_signature
     ) AS (
         SELECT
-            varbinary_substring(buf, 4, varbinary_length(buf) - 3),
-            4,
-            0,
-            CAST(NULL AS boolean),
-            CAST(NULL AS uint256),
-            CAST(NULL AS uint256),
-            CAST(NULL AS uint256),
-            CAST(NULL AS uint256),
-            CAST(NULL AS bigint),
-            CAST(NULL AS boolean),
-            CAST(NULL AS varbinary),
-            CAST(NULL AS varchar),
-            CAST(NULL AS bigint),
-            CAST(NULL AS varbinary),
-            CAST(NULL AS varbinary),
-            CAST(NULL AS varbinary),
-            CAST(NULL AS varbinary)
-        FROM vec_pade
+            base_calc.b_buf,
+            base_calc.b_pointer,
+            base_calc.b_idx,
+            base_calc.b_use_internal,
+            base_calc.b_quantity_in,
+            base_calc.b_quantity_out,
+            base_calc.b_max_gas_asset_0,
+            base_calc.b_gas_used_asset_0,
+            base_calc.b_pairs_index,
+            base_calc.b_zero_for_1,
+            base_calc.b_recipient,
+            base_calc.b_signature_kind,
+            base_calc.b_signature_ecdsa_v,
+            base_calc.b_signature_ecdsa_r,
+            base_calc.b_signature_ecdsa_s,
+            base_calc.b_signature_contract_from,
+            base_calc.b_signature_contract_signature
 
         UNION ALL
 

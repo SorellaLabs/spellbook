@@ -4,10 +4,14 @@
 
 
 
-SELECT 
-    ab.*,
-    asts.*
-FROM ({{angstrom_decoding_top_of_block_orders(raw_tx_input_hex)}}) AS ab
-CROSS JOIN LATERAL ({{ angstrom_bundle_indexes_to_assets(raw_tx_input_hex, 'ab.pairs_index', 'ab.zero_for_1') }}) AS asts
+
+WITH 
+    pratx_in AS (
+        SELECT {{ raw_tx_input_hex }} AS parent_raw_tx_input_hex
+    )
+SELECT ab.* 
+FROM pratx_in
+CROSS JOIN LATERAL ({{angstrom_decoding_top_of_block_orders('pratx_in.parent_raw_tx_input_hex')}}) AS ab
+
 
 {% endmacro %}

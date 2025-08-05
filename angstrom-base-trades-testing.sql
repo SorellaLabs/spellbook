@@ -9,14 +9,10 @@ WITH dexs AS
 WITH
     tx_data_cte AS (
         SELECT 
-            block_number,
-            block_time,
-            hash AS tx_hash,
-            index AS tx_index,
-            to AS angstrom_address,
-            data AS tx_data
-        FROM "delta_prod"."ethereum"."transactions"
-        WHERE to = 0xb9c4cE42C2e29132e207d29Af6a7719065Ca6AeC AND varbinary_substring(data, 1, 4) = 0x09c5eabe AND hash = 0x47aefe13a19c8036c0985b59090a34adffcad108630a86aae298954554394d10
+          *
+        FROM 
+        query_5581504
+        -- same as previous code here: https://dune.com/queries/5581504 
     ),
     tob_orders AS (
         SELECT 
@@ -30,6 +26,7 @@ WITH
             t.angstrom_address AS maker,
             t.angstrom_address AS project_contract_address,
             t.tx_hash AS tx_hash,
+            t.tx_data as tx_data,
             row_number() over (partition by t.tx_hash) as evt_index
         FROM tx_data_cte t
         CROSS JOIN LATERAL (
@@ -49,10 +46,19 @@ WITH vec_pade AS (
 
 
 WITH
+    get_data_cte as (
+        select 
+            tx_data 
+        from 
+        query_5581504
+    ),
+    
     trimmed_input AS (
         SELECT 
             1 AS next_offset,
             varbinary_substring(t.tx_data, 69) AS next_buf
+        FROM 
+        get_data_cte t 
     ),
     -- assets
     step0 AS (
@@ -409,10 +415,19 @@ WITH vec_pade AS (
 
 
 WITH
+    get_data_cte as (
+        select 
+            tx_data 
+        from 
+        tx_data_cte 
+    ),
+    
     trimmed_input AS (
         SELECT 
             1 AS next_offset,
             varbinary_substring(t.tx_data, 69) AS next_buf
+        FROM 
+        get_data_cte t 
     ),
     -- assets
     step0 AS (
@@ -539,7 +554,7 @@ FROM (
 
 )
     ),
-    pairs AS (
+    all_pairs AS (
         SELECT 
             bundle_idx,
             index0,
@@ -555,10 +570,19 @@ WITH vec_pade AS (
 
 
 WITH
+    get_data_cte as (
+        select 
+            tx_data 
+        from 
+        tx_data_cte 
+    ),
+    
     trimmed_input AS (
         SELECT 
             1 AS next_offset,
             varbinary_substring(t.tx_data, 69) AS next_buf
+        FROM 
+        get_data_cte t 
     ),
     -- assets
     step0 AS (
@@ -685,7 +709,15 @@ FROM (
 
 
 )
-        WHERE bundle_idx = ab.pairs_index
+    ),
+    pairs AS (
+        SELECT 
+            bundle_idx,
+            index0,
+            index1,
+            price_1over0
+        FROM all_pairs
+        JOIN params ON bundle_idx = this_pair_index
     ),
     _asset_in AS (
         SELECT
@@ -756,10 +788,19 @@ WITH vec_pade AS (
 
 
 WITH
+    get_data_cte as (
+        select 
+            tx_data 
+        from 
+        tx_data_cte 
+    ),
+    
     trimmed_input AS (
         SELECT 
             1 AS next_offset,
             varbinary_substring(t.tx_data, 69) AS next_buf
+        FROM 
+        get_data_cte t 
     ),
     -- assets
     step0 AS (
@@ -1281,10 +1322,19 @@ WITH vec_pade AS (
 
 
 WITH
+    get_data_cte as (
+        select 
+            tx_data 
+        from 
+        tx_data_cte 
+    ),
+    
     trimmed_input AS (
         SELECT 
             1 AS next_offset,
             varbinary_substring(t.tx_data, 69) AS next_buf
+        FROM 
+        get_data_cte t 
     ),
     -- assets
     step0 AS (
@@ -1427,10 +1477,19 @@ WITH vec_pade AS (
 
 
 WITH
+    get_data_cte as (
+        select 
+            tx_data 
+        from 
+        tx_data_cte 
+    ),
+    
     trimmed_input AS (
         SELECT 
             1 AS next_offset,
             varbinary_substring(t.tx_data, 69) AS next_buf
+        FROM 
+        get_data_cte t 
     ),
     -- assets
     step0 AS (
@@ -1557,7 +1616,6 @@ FROM (
 
 
 )
-        WHERE bundle_idx = ab.pair_index
     ),
     _asset_in AS (
         SELECT

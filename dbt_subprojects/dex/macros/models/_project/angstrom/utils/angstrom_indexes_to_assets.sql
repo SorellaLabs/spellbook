@@ -3,18 +3,30 @@
 %}
 
 WITH
+    params AS (
+        SELECT {{ pair_index }} AS this_pair_index
+
+    ),
     assets AS (
         SELECT *
         FROM ({{angstrom_decoding_assets(raw_tx_input_hex)}})
     ),
-    pairs AS (
+    all_pairs AS (
         SELECT 
             bundle_idx,
             index0,
             index1,
             price_1over0
         FROM ({{angstrom_decoding_pairs(raw_tx_input_hex)}})
-        WHERE bundle_idx = {{ pair_index }}
+    )
+    pairs AS (
+        SELECT 
+            bundle_idx,
+            index0,
+            index1,
+            price_1over0
+        FROM all_pairs
+        JOIN params ON bundle_idx = this_pair_index
     ),
     _asset_in AS (
         SELECT
